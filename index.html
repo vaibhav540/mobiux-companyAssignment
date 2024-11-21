@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sales Data Analysis</title>
+</head>
+<style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background-color: #f4f7fc;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      flex-direction: column;
+      align-items: center;
+      height: 100vh;
+      color: #333;
+    }
+
+    h1 {
+      text-align: center;
+      color: #4CAF50;
+      font-size: 2.5em;
+      margin-bottom: 20px;
+    }
+
+    h2 {
+      color: #333;
+      font-size: 1.8em;
+      margin-bottom: 15px;
+    }
+
+    #output {
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      padding: 30px;
+      width: 80%;
+      max-width: 900px;
+      margin-top: 20px;
+    }
+
+    .result-card {
+      background-color: #f9f9f9;
+      border: 1px solid #ddd;
+      padding: 20px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .result-card h3 {
+      color: #555;
+      font-size: 1.5em;
+      margin-bottom: 10px;
+    }
+
+    .result-card p {
+      color: #555;
+      font-size: 1.1em;
+      margin: 5px 0;
+    }
+
+    .result-card strong {
+      color: #4CAF50;
+    }
+
+    @media (max-width: 768px) {
+      h1 {
+        font-size: 2em;
+      }
+
+      h2 {
+        font-size: 1.5em;
+      }
+
+      .result-card p {
+        font-size: 1em;
+      }
+    }
+
+    .error-message {
+      background-color: #ffdddd;
+      color: #e74c3c;
+      border: 1px solid #e74c3c;
+      border-radius: 8px;
+      padding: 15px;
+      text-align: center;
+      margin-top: 20px;
+      font-size: 1.2em;
+    }
+  </style>
+<body>
+  <h1>Sales Data Analysis</h1>
+  <div id="output"></div>
+  <script>
+    async function readData(url) {
+      const response = await fetch(url);
+      const text = await response.text();
+      const lines = text.trim().split('\n');
+      const header = lines[0].split(',');
+      const data = lines.slice(1).map(line => line.split(','));
+      return { header, data };
+    }
+
+    function calculateTotalSales(data) {
+      return data.reduce((sum, row) => sum + parseFloat(row[4]), 0);
+    }
+
+    function calculateMonthlySales(data) {
+      const monthlySales = {};
+      data.forEach(row => {
+        const month = row[0].split('-')[1]; 
+        const revenue = parseFloat(row[4]);
+        monthlySales[month] = (monthlySales[month] || 0) + revenue;
+      });
+      return monthlySales;
+    }
+
+    function mostPopularItems(data) {
+      const popularity = {};
+      data.forEach(row => {
+        const month = row[0].split('-')[1];
+        const item = row[1];
+        const quantity = parseInt(row[3]);
+        if (!popularity[month]) popularity[month] = {};
+        popularity[month][item] = (popularity[month][item] || 0) + quantity;
+      });
+      const mostPopular = {};
+      for (const month in popularity) {
+        mostPopular[month] = Object.keys(popularity[month]).reduce((a, b) =>
+          popularity[month][a] > popularity[month][b] ? a : b
+        );
+      }
+      return { mostPopular, popularity };
+    }
+
+    function mostRevenueItems(data) {
+      const revenue = {};
+      data.forEach(row => {
+        const month = row[0].split('-')[1];
+        const item = row[1];
+        const itemRevenue = parseFloat(row[4]);
+        if (!revenue[month]) revenue[month] = {};
+        revenue[month][item] = (revenue[month][item] || 0) + itemRevenue;
+      });
+      const mostRevenue = {};
+      for (const month in revenue) {
+        mostRevenue[month] = Object.keys(revenue[month]).reduce((a, b) =>
+          revenue[month][a] > revenue[month][b] ? a : b
+        );
+      }
+      return mostRevenue;
+    }
+
+    function analyzePopularItem(popularity, mostPopular) {
+      const analysis = {};
+      for (const month in mostPopular) {
+        const item = mostPopular[month];
+        const quantities = Object.entries(popularity[month])
+          .filter(([itm]) => itm === item)
+          .map(([, qty]) => qty);
+        analysis[month] = {
+          min: Math.min(...quantities),
+          max: Math.max(...quantities),
+          average: quantities.reduce((a, b) => a + b, 0) / quantities.length,
+        };
+      }
+      return analysis;
+    }
+
+    async function main() {
+      const url = 'data.csv'; 
+      const { header, data } = await readData(url);
+
+      const totalSales = calculateTotalSales(data);
+      const monthlySales = calculateMonthlySales(data);
+      const { mostPopular, popularity } = mostPopularItems(data);
+      const mostRevenue = mostRevenueItems(data);
+      const analysis = analyzePopularItem(popularity, mostPopular);
+
+      const output = document.getElementById('output');
+      output.innerHTML = ` 
+        <h2>Results</h2>
+        <p><strong>Total Sales:</strong> ${totalSales}</p>
+        <p><strong>Month-wise Sales:</strong> ${JSON.stringify(monthlySales)}</p>
+        <p><strong>Most Popular Items:</strong> ${JSON.stringify(mostPopular)}</p>
+        <p><strong>Most Revenue Items:</strong> ${JSON.stringify(mostRevenue)}</p>
+        <p><strong>Analysis of Most Popular Items:</strong> ${JSON.stringify(analysis)}</p>
+      `;
+      console.log('Total Sales:', totalSales);
+      console.log('Monthly Sales:', monthlySales);
+      console.log('Most Popular Items:', mostPopular);
+      console.log('Most Revenue Items:', mostRevenue);
+      console.log('Analysis of Most Popular Items:', analysis);
+    }
+
+    main().catch(error => {
+      console.error('Error:', error);
+      document.getElementById('output').innerText = 'An error occurred while processing the data.';
+    });
+  </script>
+</body>
+</html>
